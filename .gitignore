@@ -1,0 +1,7 @@
+.venv/
+
+# overview.ipynb
+
+# Standard ignores
+__pycache__/
+data/
