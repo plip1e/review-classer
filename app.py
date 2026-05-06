@@ -1,109 +1,68 @@
-'''App file for web development of the project'''
+"""Main entry point for the Review Reviewer application"""
 
 import streamlit as st
-import pandas as pd
-import config as cfg
 import os
+import config as cfg
+from dotenv import load_dotenv
+load_dotenv()
 
-st.set_page_config(page_title="Review reviewer", page_icon="💬", )
+# Import pages
+from pages import home, classification, clustering, summary
 
-## =======================================
-## Fragments for uploading files
-## =======================================
-st.session_state['df'] = None
-@st.fragment()
-def upload_files_main():
-    '''
-    Main fragment for upload_files expander
-    '''
-    # CSV file uploader and reader
-    data_file = st.file_uploader(label="Upload data file", type="csv")
+# =======================================
+# Page Configuration
+# =======================================
 
-    if data_file:
-        st.session_state.df = pd.read_csv(data_file)
-# Truncate dataframe for display
-if st.session_state.df is not None:
-    st.session_state["col_cfg"] = {col: st.column_config.TextColumn(max_chars=30)
-                                   for col in st.session_state.df}
+st.set_page_config(page_title="Review reviewer", page_icon="💬", layout="wide")
 
-st.session_state["sample_df"] = None
-@st.fragment()
-def upload_files_btns(): # pylint: disable=too-many-branches
-    '''
-    fragment for upload_files functional buttons
-    '''
-    # Initialize columns for sample dataframe and save button
-    col1, col2 = st.columns([3.8, 1])
-    st.session_state["err_mode"] = None
+# =======================================
+# Session State Initialization
+# =======================================
 
-    # Column 1: Sample dataframe button and display
-    if st.session_state.sample_df is None:
-        with col1:
-            if st.button(label="Sample Dataframe", key="sample_btn"):
-                st.session_state["sample_df"] = 1
-                st.rerun(scope="fragment")
+if "df" not in st.session_state:
+    st.session_state['df'] = None
+    st.session_state["col_cfg"] = None
 
-    elif st.session_state.sample_df == 1:
-        if st.session_state.df is not None:
-            with col1:
-                if st.button(label="Back", key="back_btn"):
-                    st.session_state["sample_df"] = None
-                    st.rerun(scope="fragment")
-            st.dataframe(st.session_state.df.sample(6, random_state=35),
-                         column_config=st.session_state.col_cfg, hide_index=True)
-        else:
-            with col1:
-                if st.button(label="Sample Dataframe", key="sample_btn"):
-                    st.session_state["sample_df"] = 1
-                    st.rerun(scope="fragment")
-            st.session_state.err_mode = 2
+if "is_data_full" not in st.session_state:
+    st.session_state["is_data_full"] = False
+    if len([file_name.split('.')[0]
+            for file_name in os.listdir(os.path.join(os.getcwd(), "data"))]) > cfg.MAX_SAVED_CSV:
+        st.session_state.is_data_full = True
 
-    # Column 2: Save dataframe button to save to database
-    st.session_state["save_state"] = None
-    with col2:
-        if st.button(label="Save Dataframe", help=st.session_state.save_state):
-            if st.session_state.df is not None:
-                if not st.session_state.is_data_full:
-                    st.session_state.df.to_csv(os.path.join(os.getcwd(), "data",
-                                                            cfg.available_loc("str")))
-                    st.session_state.save_state = st.success("File Saved")
-                else:
-                    st.session_state.err_mode = 1
-            else:
-                st.session_state.err_mode = 2
+# # =======================================
+# # Sidebar Navigation
+# # =======================================
 
-    if st.session_state.err_mode == 1:
-        st.warning("Database is full. Delete a file if you want to save this file ")
-    elif st.session_state.err_mode == 2:
-        st.warning(body="Upload CSV file first")
-## =======================================
+with st.sidebar:
+    st.title("Navigation")
+    page = st.radio("Select a page:", 
+                    ["Home", "Classification", "Clustering", "AI Summary"])
+    
+    st.divider()
+    
+    # Database management
+    with st.expander(label="📁 Database"):
+        home.render_sidebar_database()
 
+# # =======================================
+# # Page Routing
+# # =======================================
 
+if page == "Home":
+    home.render()
+elif page == "Classification":
+    classification.render()
+elif page == "Clustering":
+    clustering.render()
+elif page == "AI Summary":
+    summary.render()
 
+# =======================================
+# Footer
+# =======================================
 
-
-
-
-## =======================================
-## Main Layout
-## =======================================
-
-st.title("Home Page")
-st.caption("This is where navigation and shorthand stats should be")
-
-# -> Upload files expander
-with st.expander(label="Upload files"):
-    upload_files_main()
-    upload_files_btns()
-
-
-## =======================================
-
-
-
-
-
-
-st.session_state["is_data_full"] = False
-if not any(cfg.available_loc("lst")):
-    st.session_state.is_data_full = True
+st.divider()
+st.markdown("""
+---
+*Create a website for the marketing department in your company, who needs to gain insights on how well the products are received by customers (from reviews) and what other competitive products exist in the market. For example, users in your webpage can choose between product categories and be shown statistics insights (distribution of ratings, best product ratings, etc), and text summarization for that specific category (which are the best product in this category, etc).*
+""")
