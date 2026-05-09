@@ -62,8 +62,7 @@ def plot_sentiment_trends(df: pd.DataFrame, date_col: str):
         ax.set_title("Sentiment Trends Over Time")
         ax.legend(title="Sentiment")
         return fig
-    except Exception as e:
-        print(f"Could not generate time series: {e}")
+    except Exception:
         return None
 
 

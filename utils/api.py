@@ -62,7 +62,7 @@ def call_groq_api(groq_client, prompt):
     """Call Groq API and return summary"""
     message = groq_client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
-        model="mixtral-8x7b-32768",
+        model="llama-3.3-70b-versatile",
         temperature=0.7,
         max_tokens=1000,
     )

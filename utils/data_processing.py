@@ -4,6 +4,8 @@ import os
 import pandas as pd
 import numpy as np
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 
 # If COLAB_API_URL is set in .env / environment, heavy functions call Colab.
 # Otherwise they run locally (original behaviour).
@@ -54,33 +56,45 @@ def classify_sentiments(df: pd.DataFrame, classifier=None) -> dict:
         review_input = df["reviews.text"].astype(str)
 
     texts = review_input.str.strip().tolist()
-    print(f"Sending {len(texts)} texts to Colab")
-    print(f"Sample: {texts[0][:100]}")
+
+    if not COLAB_API_URL:
+        raise ValueError(
+            'COLAB_API_URL is not set in .env. Please set the remote Colab server URL.'
+        )
     
-    if COLAB_API_URL:
+    try:
         response = requests.post(
             f"{COLAB_API_URL}/classify",
             json={"texts": texts},
             timeout=300,
         )
-        print(f"Response status: {response.status_code}")
-        print(f"Response body: {response.text}")
         response.raise_for_status()
         
         data = response.json()
+        
+        # Validate response structure
+        if "predicted" not in data or "scores" not in data:
+            raise ValueError(
+                f"Invalid response from Colab server. Expected 'predicted' and 'scores' fields. "
+                f"Got: {list(data.keys())}"
+            )
+        
+        if len(data["predicted"]) != len(texts):
+            raise ValueError(
+                f"Response mismatch: sent {len(texts)} texts but got {len(data['predicted'])} predictions"
+            )
+        
         return {
             "predicted": data["predicted"],
             "scores": data["scores"],
             "results": [],  # raw results not returned by remote
         }
-    else:
-        if classifier is None:
-            raise ValueError("classifier must be provided when COLAB_API_URL is not set")
-        results = classifier(texts, batch_size=32, truncation=True)
-        sentiment_map = {"POSITIVE": "positive", "NEGATIVE": "negative", "NEUTRAL": "neutral"}
-        predicted = [sentiment_map.get(r["label"], "neutral") for r in results]
-        scores = [r["score"] for r in results]
-        return {"predicted": predicted, "scores": scores, "results": results}
+    except requests.exceptions.RequestException as e:
+        raise ConnectionError(
+            f"Failed to connect to Colab server at {COLAB_API_URL}/classify: {str(e)}"
+        ) from e
+    except (KeyError, ValueError) as e:
+        raise ValueError(f"Error processing Colab response: {str(e)}") from e
 
 
 def cluster_categories(df: pd.DataFrame, model=None) -> dict:
@@ -99,22 +113,38 @@ def cluster_categories(df: pd.DataFrame, model=None) -> dict:
 
     if COLAB_API_URL:
         # ── Remote path ──────────────────────────────────────────────────────
-        response = requests.post(
-            f"{COLAB_API_URL}/cluster",
-            json={"categories": raw_categories},
-            timeout=300,
-        )
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = requests.post(
+                f"{COLAB_API_URL}/cluster",
+                json={"categories": raw_categories},
+                timeout=300,
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Validate response structure
+            required_fields = ["linkage_matrix", "category_names", "corpus"]
+            missing_fields = [f for f in required_fields if f not in data]
+            if missing_fields:
+                raise ValueError(
+                    f"Invalid response from Colab server. Missing fields: {missing_fields}. "
+                    f"Got: {list(data.keys())}"
+                )
 
-        import numpy as np
-        return {
-            "embeddings": None,  # not returned by remote (not needed locally)
-            "linkage": np.array(data["linkage_matrix"]),
-            "categories": data["category_names"],
-            "corpus": data["corpus"],
-            "terms": [],  # not needed downstream
-        }
+            import numpy as np
+            return {
+                "embeddings": None,  # not returned by remote (not needed locally)
+                "linkage": np.array(data["linkage_matrix"]),
+                "categories": data["category_names"],
+                "corpus": data["corpus"],
+                "terms": [],  # not needed downstream
+            }
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(
+                f"Failed to connect to Colab server at {COLAB_API_URL}/cluster: {str(e)}"
+            ) from e
+        except (KeyError, ValueError, TypeError) as e:
+            raise ValueError(f"Error processing Colab cluster response: {str(e)}") from e
     else:
         # ── Local path (original behaviour) ──────────────────────────────────
         if model is None:

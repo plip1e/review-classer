@@ -1,68 +1,90 @@
-"""Main entry point for the Review Reviewer application"""
+"""Review Reviewer — main entry point"""
 
-import streamlit as st
 import os
-import config as cfg
+import base64
+import streamlit as st
 from dotenv import load_dotenv
+
+import config as cfg
+from routes.home import render as render_home
+
 load_dotenv()
 
-# Import pages
-from pages import home, classification, clustering, summary
+# ── Page config ────────────────────────────────────────────────────────────────
 
-# =======================================
-# Page Configuration
-# =======================================
+st.set_page_config(layout="wide", page_title="Review Reviewer", page_icon="💬")
 
-st.set_page_config(page_title="Review reviewer", page_icon="💬", layout="wide")
+# ── Session state defaults ─────────────────────────────────────────────────────
 
-# =======================================
-# Session State Initialization
-# =======================================
-
-if "df" not in st.session_state:
-    st.session_state['df'] = None
-    st.session_state["col_cfg"] = None
+_DEFAULTS = {
+    "df": None,
+    "df_clean": None,
+    "classifications": None,
+    "clustering": None,
+    "data_loaded": False,
+    "view": "upload",
+}
+for _key, _val in _DEFAULTS.items():
+    if _key not in st.session_state:
+        st.session_state[_key] = _val
 
 if "is_data_full" not in st.session_state:
-    st.session_state["is_data_full"] = False
-    if len([file_name.split('.')[0]
-            for file_name in os.listdir(os.path.join(os.getcwd(), "data"))]) > cfg.MAX_SAVED_CSV:
-        st.session_state.is_data_full = True
+    st.session_state.is_data_full = False
+    try:
+        data_dir = os.path.join(os.getcwd(), "data")
+        csv_count = len([f for f in os.listdir(data_dir) if f.endswith(".csv")])
+        st.session_state.is_data_full = csv_count > cfg.MAX_SAVED_CSV
+    except OSError:
+        pass
 
-# # =======================================
-# # Sidebar Navigation
-# # =======================================
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _image_link(image_path: str, url: str, width: int = 25) -> None:
+    """Render a clickable image in the sidebar."""
+    try:
+        with open(image_path, "rb") as fh:
+            data = base64.b64encode(fh.read()).decode()
+        ext = image_path.rsplit(".", 1)[-1]
+        st.markdown(
+            f'<a href="{url}" target="_blank">'
+            f'<img src="data:image/{ext};base64,{data}" width="{width}"></a>',
+            unsafe_allow_html=True,
+        )
+    except FileNotFoundError:
+        st.caption(f"[Profile]({url})")
+
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.title("Navigation")
-    page = st.radio("Select a page:", 
-                    ["Home", "Classification", "Clustering", "AI Summary"])
-    
+    st.title("🛈 About")
     st.divider()
-    
-    # Database management
-    with st.expander(label="📁 Database"):
-        home.render_sidebar_database()
+    st.markdown(
+        """
+**Review Reviewer** is an intelligent platform for analysing customer reviews.
 
-# # =======================================
-# # Page Routing
-# # =======================================
+### Features
+1. **Classification** — sentiment analysis (positive, neutral, negative)
+2. **Clustering** — group product categories intelligently
+3. **AI Summary** — generate insights via Groq LLM
 
-if page == "Home":
-    home.render()
-elif page == "Classification":
-    classification.render()
-elif page == "Clustering":
-    clustering.render()
-elif page == "AI Summary":
-    summary.render()
+### How It Works
+1. Upload a CSV with review data
+2. System automatically analyses sentiment & categories
+3. Generate AI summaries for marketing insights
+        """
+    )
+    st.divider()
+    st.title("📞 Contact")
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        _image_link("static/github-icon.png", "https://github.com/plip1e")
+    with col2:
+        _image_link("static/linkedin-icon.png", "https://linkedin.com/in/paul-du-preez-67ab93302")
+    st.caption("by Paul Du Preez")
 
-# =======================================
-# Footer
-# =======================================
+# ── Main ───────────────────────────────────────────────────────────────────────
+
+render_home()
 
 st.divider()
-st.markdown("""
----
-*Create a website for the marketing department in your company, who needs to gain insights on how well the products are received by customers (from reviews) and what other competitive products exist in the market. For example, users in your webpage can choose between product categories and be shown statistics insights (distribution of ratings, best product ratings, etc), and text summarization for that specific category (which are the best product in this category, etc).*
-""")
+st.caption("Marketing insights platform for analysing customer reviews and market trends.")
