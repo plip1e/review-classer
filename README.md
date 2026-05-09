@@ -19,6 +19,9 @@ Classify customer reviews into sentiment categories (positive, negative, neutral
 - Combines review title and text for complete context
 - GPU-accelerated processing with batch inference
 - Outputs classification labels with confidence scores
+  - **Accuracy:** ~88% overall accuracy.
+  - **Analysis:** High precision (0.97) on positive reviews; the model effectively identifies negative sentiment (0.87 recall) despite significant data imbalance.
+  - **Confidence:** Average confidence score of ~0.98 across the dataset.
 
 **Approach:**
 - Combines review title and text data
@@ -27,7 +30,7 @@ Classify customer reviews into sentiment categories (positive, negative, neutral
 - Generates confusion matrix and classification reports
 
 ### 2. Product Category Clustering
-Simplifies the product dataset by clustering similar categories into broader groups.
+Simplifies the product dataset by clustering similar categories into broader groups using high-dimensional embeddings.
 
 **Implementation:**
 - Preprocesses categories through:
@@ -43,17 +46,26 @@ Simplifies the product dataset by clustering similar categories into broader gro
 3. Apply hierarchical clustering with Ward linkage
 4. Map original categories to new cluster labels
 
-### 3. Review Summarisation
-**Status:** In Development
+### 3. Review Summarisation & Marketing Analysis
+Utilises the Groq Cloud API to generate professional market analysis and summaries from aggregated customer feedback.
 
-Generates article summaries and identifies key insights from reviews by category using Groq LLM.
+**Implementation:**
+- **Model:** `llama-3.3-70b-versatile` (LLaMA 3)
+- **Contextual Input:** Injects sentiment distribution metrics, average ratings, and raw review text into the LLM context.
+- **Persona-based Prompting:** Employs a "Market Analyst" persona to transform raw data into actionable business insights.
 
 **Features:**
-- Extracts top complaints and worst features per product category
-- Generates sentiment-based summary reports
-- Highlights top-recommended products in each category
-- Identifies and reports worst individual products
-- Streamlit interface for viewing summaries by category
+- Multiple report types: General Overview, Strengths & Weaknesses, Market Positioning, and Recommendations.
+- Intelligent data sampling to provide the LLM with the most relevant review context.
+- Exportable text summaries for marketing teams.
+
+### 4. Bayesian Product Ranking
+A robust scoring system that identifies top-performing products while accounting for review volume.
+
+**Implementation:**
+- **Feature Weighting:** Uses Linear Regression to learn the relative importance of sentiment, recommendation status, and engagement (review length/helpfulness).
+- **Bayesian Average:** Penalizes products with low review counts to prevent skewed rankings from outlier 5-star reviews.
+- **Rank Calculation:** Pulls product scores toward the global mean based on confidence (sample size), ensuring top-ranked products are both high-quality and popular.
 
 ## Data Preprocessing
 
@@ -77,7 +89,14 @@ The pipeline includes comprehensive data cleaning:
 │   ├── 1429_1.csv                 # Primary Amazon reviews dataset
 │   ├── Customer-revs-of-products.csv
 │   └── May19-revs.csv
-└── static/                        # Web assets (images, icons)
+├── routes/                         # UI View components
+│   └── views/
+│       ├── summary.py
+│       └── upload.py
+├── static/                         # Web assets (images, icons)
+└── utils/                          # Logic and API utilities
+    ├── api.py
+    └── data_processing.py
 ```
 
 ## Installation
