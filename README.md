@@ -178,18 +178,13 @@ The classification model evaluation includes:
 - [x] Build product category clustering pipeline
 - [x] Create Streamlit web interface
 - [x] Generate sentiment analysis reports and visualisations
-
-### In Progress
-- [ ] Complete LLM-based review summarisation integration
-- [ ] Optimise Groq API queries for performance
-- [ ] Expand summarisation features with product recommendations
+- [x] Complete LLM-based review summarisation integration
+- [x] Optimise Groq API queries for performance
+- [x] Expand summarisation features with product recommendations
 
 ### Future Enhancements
 - Implement user feedback loop for model improvement
-- Deploy clustering-based product recommendation engine
 - Add multi-language support for international datasets
-- Create automated reporting and export functionality
-- Implement model retraining pipeline with new data
 
 ## Notes
 
