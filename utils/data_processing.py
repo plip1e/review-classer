@@ -12,7 +12,7 @@ load_dotenv()
 COLAB_API_URL = os.getenv("COLAB_API_URL", "").rstrip("/")
 
 
-def clean_data(df: pd.DataFrame, drop_cols: list = []) -> pd.DataFrame:
+def clean_data(df: pd.DataFrame, drop_cols: list) -> pd.DataFrame:
     """Clean and preprocess the dataframe"""
     df_clean = df.drop(columns=drop_cols, errors="ignore")
 
@@ -39,7 +39,7 @@ def clean_data(df: pd.DataFrame, drop_cols: list = []) -> pd.DataFrame:
     return df_clean
 
 
-def classify_sentiments(df: pd.DataFrame, classifier=None) -> dict:
+def classify_sentiments(df: pd.DataFrame) -> dict:
     """
     Classify reviews using transformer model.
     Uses Colab remote endpoint when COLAB_API_URL is set, otherwise runs locally.
@@ -61,7 +61,7 @@ def classify_sentiments(df: pd.DataFrame, classifier=None) -> dict:
         raise ValueError(
             'COLAB_API_URL is not set in .env. Please set the remote Colab server URL.'
         )
-    
+
     try:
         response = requests.post(
             f"{COLAB_API_URL}/classify",
@@ -69,21 +69,22 @@ def classify_sentiments(df: pd.DataFrame, classifier=None) -> dict:
             timeout=300,
         )
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         # Validate response structure
         if "predicted" not in data or "scores" not in data:
             raise ValueError(
                 f"Invalid response from Colab server. Expected 'predicted' and 'scores' fields. "
                 f"Got: {list(data.keys())}"
             )
-        
+
         if len(data["predicted"]) != len(texts):
             raise ValueError(
-                f"Response mismatch: sent {len(texts)} texts but got {len(data['predicted'])} predictions"
+                f"""Response mismatch:
+                sent {len(texts)} texts but got {len(data['predicted'])} predictions"""
             )
-        
+
         return {
             "predicted": data["predicted"],
             "scores": data["scores"],
@@ -121,7 +122,7 @@ def cluster_categories(df: pd.DataFrame, model=None) -> dict:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             # Validate response structure
             required_fields = ["linkage_matrix", "category_names", "corpus"]
             missing_fields = [f for f in required_fields if f not in data]
@@ -131,7 +132,6 @@ def cluster_categories(df: pd.DataFrame, model=None) -> dict:
                     f"Got: {list(data.keys())}"
                 )
 
-            import numpy as np
             return {
                 "embeddings": None,  # not returned by remote (not needed locally)
                 "linkage": np.array(data["linkage_matrix"]),
@@ -150,7 +150,7 @@ def cluster_categories(df: pd.DataFrame, model=None) -> dict:
         if model is None:
             raise ValueError("model must be provided when COLAB_API_URL is not set")
 
-        rm_punkt = lambda x: re.sub(r"[^\w\s]", "", x)
+        rm_punkt = lambda x: re.sub(r"[^\w\s]", "", x) # pylint: disable=C3001
         cat_stopwords = {
             "electronics", "new", "all", "frys", "e", "computers",
             "all tablets", "tablets", "amazon",
@@ -172,7 +172,7 @@ def cluster_categories(df: pd.DataFrame, model=None) -> dict:
         embeddings = model.encode(corpus)
 
         from scipy.cluster.hierarchy import linkage
-        Z = linkage(embeddings, method="ward")
+        Z = linkage(embeddings, method="ward") # pylint: disable=C0103
 
         return {
             "embeddings": embeddings,

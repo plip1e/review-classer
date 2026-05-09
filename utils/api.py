@@ -14,7 +14,7 @@ def colab_is_available() -> bool:
     try:
         r = requests.get(f"{COLAB_API_URL}/docs", timeout=5)
         return r.status_code == 200
-    except Exception:
+    except requests.RequestException:
         return False
 
 
@@ -35,7 +35,7 @@ def prepare_groq_context(df, include_sentiment=True, include_price=False, review
         try:
             price_val = df["price"].iloc[0] if len(df) > 0 else "N/A"
             context_parts.append(f"Price: {price_val}")
-        except Exception:
+        except KeyError:
             pass
 
     if "reviews.text" in df.columns:
@@ -47,14 +47,17 @@ def prepare_groq_context(df, include_sentiment=True, include_price=False, review
 
 def create_groq_prompt(context_string, summary_type, product_name):
     """Create a prompt for Groq LLM"""
-    prompt = f"""You are a market analyst for the marketing department. Generate a concise {summary_type.lower()} summary based on the following customer review data:
+    prompt = f"""
+    You are a market analyst for the marketing department. 
+    Generate a concise {summary_type.lower()} summary based on the following customer review data:
 
 {context_string}
 
 Product: {product_name if product_name else 'Analyzed Product'}
 Summary Type: {summary_type}
 
-Provide actionable insights that would be valuable for marketing strategies. Keep it focused and professional (2-3 paragraphs)."""
+Provide actionable insights that would be valuable for marketing strategies. 
+Keep it focused and professional (2-3 paragraphs)."""
     return prompt
 
 
